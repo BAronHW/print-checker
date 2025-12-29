@@ -1,4 +1,5 @@
 import { exec, execSync } from "node:child_process";
+import readline from 'node:readline';
 
 const isGitRepo = (cwd: string): Promise<boolean> => {
     return new Promise((resolve) => {
@@ -9,15 +10,26 @@ const isGitRepo = (cwd: string): Promise<boolean> => {
     })
 }
 
-function getChangedFiles(): string[] {
-  try {
-    const diffOutput = execSync('git diff HEAD^ HEAD --name-only', {
-      encoding: 'utf-8',
+const getUserReqs = () => {
+
+    const rl = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout,
     });
-    return diffOutput.trim().split('\n').filter(Boolean);
-  } catch {
+
+    rl.question(`What's your name?`, name => {
+        console.log(`Hi ${name}!`);
+        rl.close();
+    });
+
+}
+
+const getChangedFiles = (): string[] => {
+  try {
     const diffOutput = execSync('git status --porcelain', { encoding: 'utf-8' });
     return diffOutput.trim().split('\n').filter(Boolean);
+  } catch (error: any) {
+    console.error('Unable to get changed files');
   }
 }
 
@@ -28,6 +40,7 @@ const main = async () => {
      * 3. if there is then return a list of all modified things and also all new files
      */
     const cwd = process.cwd();
+    getUserReqs();
     try {
         const inRepo = await isGitRepo(cwd);
         if (!inRepo) {
