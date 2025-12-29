@@ -1,58 +1,49 @@
-import { exec, execSync } from "node:child_process";
-import readline from 'node:readline';
+import { execSync } from "node:child_process";
+import path from "node:path";
+import fsPromises from "fs/promises";
 
-const isGitRepo = (cwd: string): Promise<boolean> => {
-    return new Promise((resolve) => {
-        exec("git rev-parse --is-inside-work-tree", { cwd }, (err, stdout) => {
-            if (err) return resolve(false);
-            resolve(stdout.trim() === "true");
-        });
-    })
-}
+const FILES_WHITELIST = ['.ts', ''] 
 
-const getUserReqs = () => {
-
-    const rl = readline.createInterface({
-        input: process.stdin,
-        output: process.stdout,
-    });
-
-    rl.question(`What's your name?`, name => {
-        console.log(`Hi ${name}!`);
-        rl.close();
-    });
-
-}
+const isGitRepo = (): boolean => {
+  try {
+    execSync("git rev-parse --is-inside-work-tree", { stdio: "ignore" });
+    return true;
+  } catch {
+    return false;
+  }
+};
 
 const getChangedFiles = (): string[] => {
-  try {
-    const diffOutput = execSync('git status --porcelain', { encoding: 'utf-8' });
-    return diffOutput.trim().split('\n').filter(Boolean);
-  } catch (error: any) {
-    console.error('Unable to get changed files');
-  }
-}
+  const repoRoot = execSync("git rev-parse --show-toplevel", { encoding: "utf-8" }).trim();
+  const diffOutput = execSync("git status --porcelain", { encoding: "utf-8" });
+
+  return diffOutput
+    .trim()
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => path.join(repoRoot, line.slice(3)));
+};
+
+const fileContainsText = async (filePath: string, text: string): Promise<boolean> => {
+  const contents = await fsPromises.readFile(filePath, "utf-8");
+  return contents.includes(text);
+};
 
 const main = async () => {
-    /**
-     * 1. first get the current directory that the user is in
-     * 2. try to see if there is a git repo in the current working directory
-     * 3. if there is then return a list of all modified things and also all new files
-     */
-    const cwd = process.cwd();
-    getUserReqs();
-    try {
-        const inRepo = await isGitRepo(cwd);
-        if (!inRepo) {
-            console.error('Error: No git repository found in your current working directory');
-            process.exit(1);
-        }
-        const files = getChangedFiles();
-        console.log(files);
-    } catch (err: any) {
-        console.error(err);
-    }
+  if (!isGitRepo()) {
+    console.error("Error: No git repository found in your current working directory");
+    process.exit(1);
+  }
 
-}
+  const files = getChangedFiles();
+  const results = await Promise.all(
+    files.map(async (file) => ({
+      file,
+      hasConsoleLog: await fileContainsText(file, "console.log"),
+    }))
+  );
+
+  console.log(results);
+};
 
 main();
