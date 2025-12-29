@@ -9,11 +9,16 @@ const isGitRepo = (cwd: string): Promise<boolean> => {
     })
 }
 
-function getChangedFiles(extension: string = '') {
-  const extensionFilter = extension ? `-- '***.${extension}'` : '';
-  const command = `git diff HEAD^ HEAD --name-only ${extensionFilter}`;
-  const diffOutput = execSync(command);
-  return diffOutput.toString().split('\n').filter(Boolean);
+function getChangedFiles(): string[] {
+  try {
+    const diffOutput = execSync('git diff HEAD^ HEAD --name-only', {
+      encoding: 'utf-8',
+    });
+    return diffOutput.trim().split('\n').filter(Boolean);
+  } catch {
+    const diffOutput = execSync('git status --porcelain', { encoding: 'utf-8' });
+    return diffOutput.trim().split('\n').filter(Boolean);
+  }
 }
 
 const main = async () => {
