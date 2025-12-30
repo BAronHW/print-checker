@@ -1,45 +1,70 @@
-import { execSync } from "node:child_process";
+import { spawn } from "node:child_process";
+import os from 'os'
 import path from "node:path";
-import fsPromises from "fs/promises";
 
-const FILES_WHITELIST = ['.ts', ''] 
+/**
+ * need to normalize to using POSIX paths
+ */
 
-const isGitRepo = (): boolean => {
-  try {
-    execSync("git rev-parse --is-inside-work-tree", { stdio: "ignore" });
-    return true;
-  } catch {
-    return false;
-  }
+interface OS {
+  type: 'win32' | 'linux' | 'darwin'
+}
+
+const spawnAsync = (command: string, args: string[]): Promise<{ code: number; stdout: string }> => {
+  return new Promise((resolve) => {
+    const child = spawn(command, args);
+    let stdout = "";
+
+    child.stdout?.on("data", (data) => {
+      stdout += data.toString();
+    });
+
+    child.on("close", (code) => {
+      resolve({ code: code ?? 1, stdout });
+    });
+  });
 };
 
-const getChangedFiles = (): string[] => {
-  const repoRoot = execSync("git rev-parse --show-toplevel", { encoding: "utf-8" }).trim();
-  const diffOutput = execSync("git status --porcelain", { encoding: "utf-8" });
+const isGitRepo = async (): Promise<boolean> => {
+  const { code } = await spawnAsync("git", ["rev-parse", "--is-inside-work-tree"]);
+  return code === 0;
+};
 
+const getChangedFiles = async (): Promise<string[]> => {
+  const { stdout: repoRoot } = await spawnAsync("git", ["rev-parse", "--show-toplevel"]);
+  const { stdout: diffOutput } = await spawnAsync("git", ["status", "--porcelain"]);
+  const normalizedRoot =  path.normalize(repoRoot.trim());
+  
   return diffOutput
     .trim()
     .split("\n")
     .filter(Boolean)
-    .map((line) => path.join(repoRoot, line.slice(3)));
+    .map((diffFile) => path.join(normalizedRoot, diffFile.trim().split(' ')[1]))
 };
 
-const fileContainsText = async (filePath: string, text: string): Promise<boolean> => {
-  const contents = await fsPromises.readFile(filePath, "utf-8");
-  return contents.includes(text);
+const fileContainsText = (text: string, filePath: string): Promise<boolean> => {
+  return new Promise((resolve) => {
+    const child = spawn("git", ["grep", "-q", text, "--", filePath], {
+      stdio: "ignore",
+    });
+
+    child.on("close", (code) => {
+      resolve(code === 0);
+    });
+  });
 };
 
 const main = async () => {
-  if (!isGitRepo()) {
+  if (!await isGitRepo()) {
     console.error("Error: No git repository found in your current working directory");
     process.exit(1);
   }
 
-  const files = getChangedFiles();
+  const files = await getChangedFiles();
   const results = await Promise.all(
     files.map(async (file) => ({
       file,
-      hasConsoleLog: await fileContainsText(file, "console.log"),
+      hasConsoleLog: await fileContainsText("console.log", file),
     }))
   );
 
