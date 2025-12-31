@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process';
 import path from 'node:path';
 import chalk from 'chalk';
+import readline from 'node:readline/promises';
 
 /**
  * 1. grep doesnt work with utf-16 encoded files might need to find a way to deal with this
@@ -10,17 +11,21 @@ import chalk from 'chalk';
  * 5. publish to npm?
  */
 
-interface filePathAndContains {
-  file: string,
-  hasConsoleLog: boolean
-}
+const rl = readline.createInterface({
+  input: process.stdin,
+  output: process.stdout
+});
 
-const setupQuestions = () => {
+const setupQuestions = async () => {
   /**
    * 1. what languages will you be writing in
    * 2. what do your files end in
    * 3. Do you want to block commits or just warn
    */
+  const language = await rl.question('What language are you using? (ts/js): ');
+  const warnOnly = await rl.question('Warn only without blocking? (y/n): ');
+  rl.close()
+  
 }
 
 const throwWarnings = (filesWithConsoleLogs: string[]) => {
@@ -121,6 +126,8 @@ const main = async () => {
     console.error('Error: No git repository found in your current working directory');
     process.exit(1);
   }
+
+  await setupQuestions()
 
   const files = await getChangedFiles();
   const filesWithPrint = await findPrintStatements(files, 'console.log');
