@@ -2,10 +2,10 @@
   "compilerOptions": {
     "module": "nodenext",
     "esModuleInterop": true,
-    "target": "es6",
-    "moduleResolution": "nodenext",
+    "target": "ES2021",
+    "moduleResolution": "NodeNext",
     "sourceMap": true,
-    "outDir": "dist"
-  },
-  "lib": ["es2022"]
+    "outDir": "dist",
+    "lib": ["ES2021"]
+  }
 }
