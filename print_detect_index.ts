@@ -8,9 +8,7 @@ import { readFile, writeFile } from 'node:fs/promises';
  * 1. grep doesnt work with utf-16 encoded files might need to find a way to deal with this
  * 2. maybe add reference to line and row detected
  * 3. add this to precommit hook
- * 4. add setup stage questions
  * 5. publish to npm?
- * 6. exclude some file
  */
 
 interface PrintCheckConfig  {
@@ -69,11 +67,6 @@ const normalizeQuestionResp = (
 }
 
 const setupQuestions = async (): Promise<PrintCheckConfig> => {
-  /**
-   * 1. what languages will you be writing in
-   * 2. what do your files end in
-   * 3. Do you want to block commits or just warn
-   */
   const fileExtension = await rl.question('Enter file extensions with the . in the beginning (comma-separated)');
   const warnOnly = await rl.question('Warn only without blocking? (y/n): ');
   const searchTerms = await rl.question('Enter patterns to search (comma-separated)');
@@ -159,10 +152,14 @@ const getChangedFiles = async (fileExtensions: string[]): Promise<string[]> => {
     .split('\n')
     .filter(Boolean)
     .map((diffFile) => path.join(normalizedRoot, diffFile.trim().split(' ')[1]))
-    .filter((fileName) => [...fileExtensions].some(ext => fileName.endsWith(ext)))
+    .filter((fileName) => [...fileExtensions].some(extension => fileName.endsWith(extension)))
 };
 
-const findPrintStatements = async (files: string[], printStatement: string[]): Promise<string[]> => {
+const findPrintStatements = async (
+  files: string[], 
+  printStatement: string[]
+): Promise<string[]> => {
+
   if (files.length === 0) return [];
 
   const patternArgs = printStatement.flatMap(p => ['-e', p]);
@@ -205,6 +202,7 @@ const main = async () => {
   if (filesWithPrint.length > 0) {
     throwWarnings(filesWithPrint);
     process.exit(1);
+    // maybe while loop to listen to a is this okay? and if yes continue and stop blocking
   }
 
   process.exit(0);
