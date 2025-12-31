@@ -2,6 +2,7 @@ import { spawn } from 'node:child_process';
 import path from 'node:path';
 import chalk from 'chalk';
 import readline from 'node:readline/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 
 /**
  * 1. grep doesnt work with utf-16 encoded files might need to find a way to deal with this
@@ -9,22 +10,82 @@ import readline from 'node:readline/promises';
  * 3. add this to precommit hook
  * 4. add setup stage questions
  * 5. publish to npm?
+ * 6. exclude some file
  */
+
+interface PrintCheckConfig  {
+  fileExtensions: string[];
+  warnOnly: boolean;
+  searchTerms: string[];
+};
 
 const rl = readline.createInterface({
   input: process.stdin,
   output: process.stdout
 });
 
-const setupQuestions = async () => {
+const checkForConfigFile = async (): Promise<PrintCheckConfig | null> => {
+  try {
+    const filePath = path.join(process.cwd(), 'print_check_config.json');
+    const jsonFile = await readFile(filePath, { encoding: 'utf8' });
+    const parsedJsonFile: PrintCheckConfig  = JSON.parse(jsonFile);
+    return parsedJsonFile;
+  } catch (error) {
+    return null;
+  }
+}
+
+const createConfigFile = async (userInput: PrintCheckConfig): Promise<boolean> => {
+  try {
+    const stringifiedData = JSON.stringify(userInput);
+    const configPath = path.join(process.cwd(), 'print_check_config.json')
+    await writeFile(configPath, stringifiedData);
+    console.log(chalk.blue('Successfully created config file'));
+    return true;
+  } catch (error) {
+    console.log(chalk.red('Failed to create config file'));
+    return false;
+  }
+}
+
+const normalizeQuestionResp = (
+  fileExtensions: string, 
+  warnOnly: string, 
+  searchTerms: string
+): PrintCheckConfig  => {
+
+  const extensions = fileExtensions.split(',');
+  const warnFlag = warnOnly === 'y' ? true : false;
+  const terms = searchTerms.split(',');
+
+  const returnObj: PrintCheckConfig  = {
+    fileExtensions: extensions,
+    warnOnly: warnFlag,
+    searchTerms: terms
+  }
+
+  return returnObj;
+
+}
+
+const setupQuestions = async (): Promise<PrintCheckConfig> => {
   /**
    * 1. what languages will you be writing in
    * 2. what do your files end in
    * 3. Do you want to block commits or just warn
    */
-  const language = await rl.question('What language are you using? (ts/js): ');
+  const fileExtension = await rl.question('Enter file extensions with the . in the beginning (comma-separated)');
   const warnOnly = await rl.question('Warn only without blocking? (y/n): ');
+  const searchTerms = await rl.question('Enter patterns to search (comma-separated)');
   rl.close()
+
+  const resObj = normalizeQuestionResp(
+    fileExtension, 
+    warnOnly, 
+    searchTerms
+  );
+
+  return resObj;
   
 }
 
@@ -88,7 +149,7 @@ const getDiffOutputs = async (): Promise<string> => {
   });
 };
 
-const getChangedFiles = async (): Promise<string[]> => {
+const getChangedFiles = async (fileExtensions: string[]): Promise<string[]> => {
   const repoRoot = await getRepoRoot();
   const diffOutput = await getDiffOutputs()
   const normalizedRoot =  path.normalize(repoRoot.trim());
@@ -98,14 +159,17 @@ const getChangedFiles = async (): Promise<string[]> => {
     .split('\n')
     .filter(Boolean)
     .map((diffFile) => path.join(normalizedRoot, diffFile.trim().split(' ')[1]))
+    .filter((fileName) => [...fileExtensions].some(ext => fileName.endsWith(ext)))
 };
 
-const findPrintStatements = async (files: string[], printStatement: string): Promise<string[]> => {
+const findPrintStatements = async (files: string[], printStatement: string[]): Promise<string[]> => {
   if (files.length === 0) return [];
+
+  const patternArgs = printStatement.flatMap(p => ['-e', p]);
   
   return new Promise((resolve) => {
     const child = spawn('git', [
-      'grep', '-l', '--no-index', printStatement, '--', ...files
+      'grep', '-l', '--no-index', ...patternArgs, '--', ...files
     ]);
     
     const chunks: Buffer[] = [];
@@ -127,10 +191,16 @@ const main = async () => {
     process.exit(1);
   }
 
-  await setupQuestions()
+  const configFile = await checkForConfigFile();
+  const { fileExtensions, warnOnly, searchTerms } = configFile;
 
-  const files = await getChangedFiles();
-  const filesWithPrint = await findPrintStatements(files, 'console.log');
+  if (!configFile) {
+    const userInput = await setupQuestions()
+    await createConfigFile(userInput);
+  }
+
+  const files = await getChangedFiles(fileExtensions);
+  const filesWithPrint = await findPrintStatements(files, searchTerms);
 
   if (filesWithPrint.length > 0) {
     throwWarnings(filesWithPrint);
