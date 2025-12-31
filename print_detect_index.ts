@@ -1,7 +1,6 @@
 import { spawn } from 'node:child_process';
 import path from 'node:path';
 import chalk from 'chalk';
-import { resolve } from 'node:dns';
 
 /**
  * 1. grep doesnt work with utf-16 encoded files might need to find a way to deal with this
@@ -16,9 +15,17 @@ interface filePathAndContains {
   hasConsoleLog: boolean
 }
 
-const throwWarnings = (pathAndBoolObj: filePathAndContains[]) => {
-  pathAndBoolObj.forEach(pathObj => {
-    console.error(chalk.red('WARNING:'), `print statement detected at ${chalk.blue(pathObj.file)}`)
+const setupQuestions = () => {
+  /**
+   * 1. what languages will you be writing in
+   * 2. what do your files end in
+   * 3. Do you want to block commits or just warn
+   */
+}
+
+const throwWarnings = (filesWithConsoleLogs: string[]) => {
+  filesWithConsoleLogs.forEach(pathObj => {
+    console.error(chalk.red('WARNING:'), `print statement detected at ${chalk.blue(pathObj)}`)
   });
 }
 
@@ -88,18 +95,23 @@ const getChangedFiles = async (): Promise<string[]> => {
     .map((diffFile) => path.join(normalizedRoot, diffFile.trim().split(' ')[1]))
 };
 
-const fileContainsText = (text: string, filePath: string): Promise<boolean> => {
+const findPrintStatements = async (files: string[], printStatement: string): Promise<string[]> => {
+  if (files.length === 0) return [];
+  
   return new Promise((resolve) => {
-    const dir = path.dirname(filePath);
-    const file = path.basename(filePath);
-
-    const child = spawn('git', ['grep', '-q', '--no-index', text, '--', file], {
-      cwd: dir,
-      stdio: 'ignore',
-    });
-
+    const child = spawn('git', [
+      'grep', '-l', '--no-index', printStatement, '--', ...files
+    ]);
+    
+    const chunks: Buffer[] = [];
+    child.stdout.on('data', (data) => chunks.push(data));
+    
     child.on('close', (code) => {
-      resolve(code === 0);
+      if (code === 0) {
+        resolve(Buffer.concat(chunks).toString().trim().split('\n').filter(Boolean));
+      } else {
+        resolve([]);
+      }
     });
   });
 };
@@ -111,14 +123,15 @@ const main = async () => {
   }
 
   const files = await getChangedFiles();
-  const results = await Promise.all(
-    files.map(async(file) => ({
-      file,
-      hasConsoleLog: await fileContainsText('console.log', file),
-    }))
-  );
+  const filesWithPrint = await findPrintStatements(files, 'console.log');
 
-  throwWarnings(results)
+  if (filesWithPrint.length > 0) {
+    throwWarnings(filesWithPrint);
+    process.exit(1);
+  }
+
+  process.exit(0);
+  
 };
 
 main();
