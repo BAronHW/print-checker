@@ -225,11 +225,19 @@ const main = async () => {
   const files = await getChangedFiles(fileExtensions);
   const filesWithPrint = await findPrintStatements(files, searchTerms);
 
-  if (filesWithPrint.length > 0 && warnOnly) {
+  if (filesWithPrint.length > 0) {
     throwWarnings(filesWithPrint);
-    const shouldProceed = await confirmProceed();
-    // maybe while loop to listen to a is this okay? and if yes continue and stop blocking
-    
+
+    if (warnOnly) {
+      const shouldProceed = await confirmProceed();
+      if (!shouldProceed) {
+        console.log(chalk.red('Commit aborted.'));
+        process.exit(1);
+      }
+    } else {
+      console.log(chalk.red('Commit blocked due to print statements.'));
+      process.exit(1);
+    }
   }
 
   process.exit(0);
