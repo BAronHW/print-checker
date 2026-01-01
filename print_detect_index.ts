@@ -164,7 +164,7 @@ const getChangedFiles = async (fileExtensions: string[]): Promise<string[]> => {
       }
       return path.join(normalizedRoot, entry.slice(3));
     })
-    .filter(Boolean);
+    .filter((fileName) => [...fileExtensions].some(ext => fileName.endsWith(ext)))
 };
 
 const findPrintStatements = async (
@@ -175,6 +175,7 @@ const findPrintStatements = async (
   if (files.length === 0) return [];
 
   const patternArgs = printStatement.flatMap(p => ['-e', p]);
+  const repoRoot = await getRepoRoot()
   
   return new Promise((resolve) => {
     const child = spawn('git', [
@@ -186,7 +187,13 @@ const findPrintStatements = async (
     
     child.on('close', (code) => {
       if (code === 0) {
-        resolve(Buffer.concat(chunks).toString().trim().split('\n').filter(Boolean));
+        resolve(
+          Buffer.concat(chunks)
+            .toString()
+            .trim()
+            .split('\n')
+            .map(file => path.join(repoRoot, file))
+        );
       } else {
         resolve([]);
       }
