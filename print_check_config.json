@@ -1,1 +1,9 @@
-{"fileExtensions":[".ts"],"warnOnly":true,"searchTerms":["console.log"]}
+{
+  "fileExtensions": [
+    ".ts"
+  ],
+  "warnOnly": true,
+  "searchTerms": [
+    "console.log"
+  ]
+}

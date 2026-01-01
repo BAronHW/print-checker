@@ -22,6 +22,15 @@ const rl = readline.createInterface({
   output: process.stdout
 });
 
+const getConfig = async (): Promise<PrintCheckConfig> => {
+  const existing = await checkForConfigFile();
+  if (existing) return existing;
+  
+  const newConfig = await setupQuestions();
+  await createConfigFile(newConfig);
+  return newConfig;
+};
+
 const checkForConfigFile = async (): Promise<PrintCheckConfig | null> => {
   try {
     const filePath = path.join(process.cwd(), 'print_check_config.json');
@@ -35,7 +44,7 @@ const checkForConfigFile = async (): Promise<PrintCheckConfig | null> => {
 
 const createConfigFile = async (userInput: PrintCheckConfig): Promise<boolean> => {
   try {
-    const stringifiedData = JSON.stringify(userInput);
+    const stringifiedData = JSON.stringify(userInput, null, 2);
     const configPath = path.join(process.cwd(), 'print_check_config.json')
     await writeFile(configPath, stringifiedData);
     console.log(chalk.blue('Successfully created config file'));
@@ -52,9 +61,9 @@ const normalizeQuestionResp = (
   searchTerms: string
 ): PrintCheckConfig  => {
 
-  const extensions = fileExtensions.split(',');
+  const extensions = fileExtensions.trim().split(',').map(ext => ext.trim());
   const warnFlag = warnOnly === 'y' ? true : false;
-  const terms = searchTerms.split(',');
+  const terms = searchTerms.split(',').map(terms => terms.trim());
 
   const returnObj: PrintCheckConfig  = {
     fileExtensions: extensions,
@@ -121,7 +130,7 @@ const getRepoRoot = async (): Promise<string> => {
 
 const getDiffOutputs = async (): Promise<string> => {
   return new Promise((resolve, reject) => {
-    const child = spawn('git', ['status', '--porcelain']);
+    const child = spawn('git', ['status', '--porcelain', '-z']);
     const chunks: Buffer[] = [];
 
     child.stdout.on('data', (data) => {
@@ -146,13 +155,16 @@ const getChangedFiles = async (fileExtensions: string[]): Promise<string[]> => {
   const repoRoot = await getRepoRoot();
   const diffOutput = await getDiffOutputs()
   const normalizedRoot =  path.normalize(repoRoot.trim());
-  
   return diffOutput
-    .trim()
-    .split('\n')
+    .split('\0')
     .filter(Boolean)
-    .map((diffFile) => path.join(normalizedRoot, diffFile.trim().split(' ')[1]))
-    .filter((fileName) => [...fileExtensions].some(extension => fileName.endsWith(extension)))
+    .map((entry) => {
+      if (entry.startsWith('R')) {
+        return null;
+      }
+      return path.join(normalizedRoot, entry.slice(3));
+    })
+    .filter(Boolean);
 };
 
 const findPrintStatements = async (
@@ -188,13 +200,8 @@ const main = async () => {
     process.exit(1);
   }
 
-  const configFile = await checkForConfigFile();
-  const { fileExtensions, warnOnly, searchTerms } = configFile;
-
-  if (!configFile) {
-    const userInput = await setupQuestions()
-    await createConfigFile(userInput);
-  }
+  const config = await getConfig();
+  const { fileExtensions, warnOnly, searchTerms } = config;
 
   const files = await getChangedFiles(fileExtensions);
   const filesWithPrint = await findPrintStatements(files, searchTerms);
