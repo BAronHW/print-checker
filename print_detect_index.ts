@@ -17,11 +17,6 @@ interface PrintCheckConfig  {
   searchTerms: string[];
 };
 
-const rl = readline.createInterface({
-  input: process.stdin,
-  output: process.stdout
-});
-
 const getConfig = async (): Promise<PrintCheckConfig> => {
   const existing = await checkForConfigFile();
   if (existing) return existing;
@@ -76,10 +71,15 @@ const normalizeQuestionResp = (
 }
 
 const setupQuestions = async (): Promise<PrintCheckConfig> => {
+
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout
+  });
+
   const fileExtension = await rl.question('Enter file extensions with the . in the beginning (comma-separated)');
   const warnOnly = await rl.question('Warn only without blocking? (y/n): ');
   const searchTerms = await rl.question('Enter patterns to search (comma-separated)');
-  rl.close()
 
   const resObj = normalizeQuestionResp(
     fileExtension, 
@@ -201,6 +201,18 @@ const findPrintStatements = async (
   });
 };
 
+const confirmProceed = async (): Promise<boolean> => {
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout
+  });
+
+  const answer = await rl.question('Print statements detected. Continue anyway? (y/n): ');
+  rl.close();
+  
+  return answer.toLowerCase() === 'y';
+};
+
 const main = async () => {
   if (!await isGitRepo()) {
     console.error('Error: No git repository found in your current working directory');
@@ -213,10 +225,11 @@ const main = async () => {
   const files = await getChangedFiles(fileExtensions);
   const filesWithPrint = await findPrintStatements(files, searchTerms);
 
-  if (filesWithPrint.length > 0) {
+  if (filesWithPrint.length > 0 && warnOnly) {
     throwWarnings(filesWithPrint);
-    process.exit(1);
+    const shouldProceed = await confirmProceed();
     // maybe while loop to listen to a is this okay? and if yes continue and stop blocking
+    
   }
 
   process.exit(0);
