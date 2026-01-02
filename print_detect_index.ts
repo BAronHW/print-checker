@@ -9,6 +9,9 @@ import { readFile, writeFile } from 'node:fs/promises';
  * 2. maybe add reference to line and row detected
  * 3. add this to precommit hook - need to test on linux based system
  * 5. publish to npm?
+ * 6. need to have the script compile on first install
+ * 7. need to make it work on both win32 and linux systems
+ * 8. find better way make the pre-hook script work better
  */
 
 interface PrintCheckConfig  {
