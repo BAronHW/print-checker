@@ -7,7 +7,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 /**
  * 1. grep doesnt work with utf-16 encoded files might need to find a way to deal with this
  * 2. maybe add reference to line and row detected
- * 3. add this to precommit hook
+ * 3. add this to precommit hook - need to test on linux based system
  * 5. publish to npm?
  */
 
