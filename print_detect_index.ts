@@ -5,13 +5,12 @@ import readline from 'node:readline/promises';
 import { readFile, writeFile } from 'node:fs/promises';
 
 /**
- * 1. grep doesnt work with utf-16 encoded files might need to find a way to deal with this
- * 2. maybe add reference to line and row detected
- * 3. add this to precommit hook - need to test on linux based system
- * 5. publish to npm?
- * 6. need to have the script compile on first install
- * 7. need to make it work on both win32 and linux systems
- * 8. find better way make the pre-hook script work better?
+ * 1. maybe add reference to line and row detected
+ * 2. add this to precommit hook - need to test on linux based system
+ * 3. publish to npm?
+ * 4. need to have the script compile on first install
+ * 5. need to make it work on both win32 and linux systems
+ * 6. find better way make the pre-hook script work better?
  */
 
 interface PrintCheckConfig  {
