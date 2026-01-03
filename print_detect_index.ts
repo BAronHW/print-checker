@@ -17,6 +17,7 @@ interface PrintCheckConfig  {
   fileExtensions: string[];
   warnOnly: boolean;
   searchTerms: string[];
+  hasLineDetails: boolean;
 };
 
 const getConfig = async (): Promise<PrintCheckConfig> => {
@@ -43,7 +44,6 @@ const checkForConfigFile = async (): Promise<PrintCheckConfig | null> => {
 
     return parsedJsonFile;
   } catch (error) {
-    console.error(error);
     return null;
   }
 }
@@ -65,7 +65,8 @@ const createConfigFile = async (userInput: PrintCheckConfig): Promise<boolean> =
 const normalizeQuestionResp = (
   fileExtensions: string, 
   warnOnly: string, 
-  searchTerms: string
+  searchTerms: string,
+  hasLineDetails: string
 ): PrintCheckConfig  => {
 
   
@@ -85,7 +86,13 @@ const normalizeQuestionResp = (
     throw new Error('Please answer y or n');
   }
 
+  const lineDetail = hasLineDetails.toLowerCase();
+  if (lineDetail !== 'y' && lineDetail !== 'n') {
+    throw new Error('Please answer y or n');
+  }
+
   const warnFlag = warnLower === 'y';
+  const lineDetailFlag = lineDetail === 'y';
   const terms = searchTerms
     .split(',')
     .map(terms => terms.trim());
@@ -93,7 +100,8 @@ const normalizeQuestionResp = (
   const returnObj: PrintCheckConfig  = {
     fileExtensions: trimAndSplitExt,
     warnOnly: warnFlag,
-    searchTerms: terms
+    searchTerms: terms,
+    hasLineDetails: lineDetailFlag
   }
 
   return returnObj;
@@ -110,11 +118,13 @@ const setupQuestions = async (): Promise<PrintCheckConfig> => {
   const fileExtension = await rl.question('Enter file extensions with the . in the beginning (comma-separated)');
   const warnOnly = await rl.question('Warn only without blocking? (y/n): ');
   const searchTerms = await rl.question('Enter patterns to search (comma-separated)');
+  const hasLineDetails = await rl.question('Show line details for each print statement? (y/n): ')
 
   const resObj = normalizeQuestionResp(
     fileExtension, 
     warnOnly, 
-    searchTerms
+    searchTerms,
+    hasLineDetails
   );
 
   rl.close();
@@ -189,29 +199,27 @@ const getChangedFiles = async (fileExtensions: string[]): Promise<string[]> => {
   return diffOutput
     .split('\0')
     .filter(Boolean)
-    .map((entry) => {
-      if (entry.startsWith('R')) {
-        return null;
-      }
-      return path.join(normalizedRoot, entry.slice(3));
-    })
-    .filter((fileName) => fileName !== null) 
+    .map((entry) => path.join(normalizedRoot, entry))
     .filter((fileName) => fileExtensions.some(ext => fileName.endsWith(ext)))
 };
 
 const findPrintStatements = async (
   files: string[], 
-  printStatement: string[]
+  printStatement: string[],
+  hasLineDetails: boolean
 ): Promise<string[]> => {
 
   if (files.length === 0) return [];
 
   const patternArgs = printStatement.flatMap(p => ['-e', p]);
   const repoRoot = await getRepoRoot()
+
+  const lineDetailArg: string =
+    hasLineDetails == true ? '-n' : '-l' 
   
   return new Promise((resolve) => {
     const child = spawn('git', [
-      'grep', '-n', '--no-index', ...patternArgs, '--', ...files
+      'grep', '--cached', lineDetailArg, ...patternArgs, '--', ...files
     ]);
     
     const chunks: Buffer[] = [];
@@ -224,7 +232,7 @@ const findPrintStatements = async (
             .toString()
             .trim()
             .split('\n')
-            .map(file => path.join(repoRoot, file))
+            .map((filePath) => path.join(repoRoot, filePath))
         );
       } else {
         resolve([]);
@@ -252,10 +260,10 @@ const main = async () => {
   }
 
   const config = await getConfig();
-  const { fileExtensions, warnOnly, searchTerms } = config;
+  const { fileExtensions, warnOnly, searchTerms, hasLineDetails } = config;
 
   const files = await getChangedFiles(fileExtensions);
-  const filesWithPrint = await findPrintStatements(files, searchTerms);
+  const filesWithPrint = await findPrintStatements(files, searchTerms, hasLineDetails);
 
   if (filesWithPrint.length > 0) {
     throwWarnings(filesWithPrint);
