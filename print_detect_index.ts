@@ -34,8 +34,17 @@ const checkForConfigFile = async (): Promise<PrintCheckConfig | null> => {
     const filePath = path.join(process.cwd(), 'print_check_config.json');
     const jsonFile = await readFile(filePath, { encoding: 'utf8' });
     const parsedJsonFile: PrintCheckConfig  = JSON.parse(jsonFile);
+
+    if (!Array.isArray(parsedJsonFile.fileExtensions) ||
+        typeof parsedJsonFile.warnOnly !== 'boolean' ||
+        !Array.isArray(parsedJsonFile.searchTerms)) {
+      console.log(chalk.yellow('Invalid config file, creating new one'));
+      return null;
+    }
+
     return parsedJsonFile;
   } catch (error) {
+    console.error(error);
     return null;
   }
 }
@@ -49,6 +58,7 @@ const createConfigFile = async (userInput: PrintCheckConfig): Promise<boolean> =
     return true;
   } catch (error) {
     console.log(chalk.red('Failed to create config file'));
+    console.error(error);
     return false;
   }
 }
@@ -59,12 +69,29 @@ const normalizeQuestionResp = (
   searchTerms: string
 ): PrintCheckConfig  => {
 
-  const extensions = fileExtensions.trim().split(',').map(ext => ext.trim());
-  const warnFlag = warnOnly === 'y' ? true : false;
-  const terms = searchTerms.split(',').map(terms => terms.trim());
+  const trimAndSplitExt = fileExtensions
+    .trim()
+    .split(',')
+
+  const invalidExtensions = trimAndSplitExt
+    .filter((ext) => !ext.startsWith('.'))
+
+  if (invalidExtensions.length > 0) {
+    throw new Error(`Invalid extensions (extensions must start with '.') Invalid Extensions: ${invalidExtensions}`)
+  }
+
+  const warnLower = warnOnly.toLowerCase();
+  if (warnLower !== 'y' && warnLower !== 'n') {
+    throw new Error('Please answer y or n');
+  }
+
+  const warnFlag = warnLower === 'y';
+  const terms = searchTerms
+    .split(',')
+    .map(terms => terms.trim());
 
   const returnObj: PrintCheckConfig  = {
-    fileExtensions: extensions,
+    fileExtensions: trimAndSplitExt,
     warnOnly: warnFlag,
     searchTerms: terms
   }
@@ -90,6 +117,7 @@ const setupQuestions = async (): Promise<PrintCheckConfig> => {
     searchTerms
   );
 
+  rl.close();
   return resObj;
   
 }
@@ -133,7 +161,7 @@ const getRepoRoot = async (): Promise<string> => {
 
 const getDiffOutputs = async (): Promise<string> => {
   return new Promise((resolve, reject) => {
-    const child = spawn('git', ['status', '--porcelain', '-z']);
+    const child = spawn('git', ['diff', '--cached', '--name-only', '--diff-filter=d', '-z']);
     const chunks: Buffer[] = [];
 
     child.stdout.on('data', (data) => {
@@ -167,7 +195,8 @@ const getChangedFiles = async (fileExtensions: string[]): Promise<string[]> => {
       }
       return path.join(normalizedRoot, entry.slice(3));
     })
-    .filter((fileName) => [...fileExtensions].some(ext => fileName.endsWith(ext)))
+    .filter((fileName) => fileName !== null) 
+    .filter((fileName) => fileExtensions.some(ext => fileName.endsWith(ext)))
 };
 
 const findPrintStatements = async (
@@ -182,7 +211,7 @@ const findPrintStatements = async (
   
   return new Promise((resolve) => {
     const child = spawn('git', [
-      'grep', '-l', '--no-index', ...patternArgs, '--', ...files
+      'grep', '-n', '--no-index', ...patternArgs, '--', ...files
     ]);
     
     const chunks: Buffer[] = [];
