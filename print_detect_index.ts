@@ -68,6 +68,7 @@ const normalizeQuestionResp = (
   searchTerms: string
 ): PrintCheckConfig  => {
 
+  
   const trimAndSplitExt = fileExtensions
     .trim()
     .split(',')
