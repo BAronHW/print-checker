@@ -13,14 +13,14 @@ import { readFile, writeFile } from 'node:fs/promises';
  * 6. find better way make the pre-hook script work better?
  */
 
-interface PrintCheckConfig  {
+export interface PrintCheckConfig  {
   fileExtensions: string[];
   warnOnly: boolean;
   searchTerms: string[];
   hasLineDetails: boolean;
 };
 
-const getConfig = async (): Promise<PrintCheckConfig> => {
+export const getConfig = async (): Promise<PrintCheckConfig> => {
   const existing = await checkForConfigFile();
   if (existing) return existing;
   
@@ -29,7 +29,7 @@ const getConfig = async (): Promise<PrintCheckConfig> => {
   return newConfig;
 };
 
-const checkForConfigFile = async (): Promise<PrintCheckConfig | null> => {
+export const checkForConfigFile = async (): Promise<PrintCheckConfig | null> => {
   try {
     const filePath = path.join(process.cwd(), 'print_check_config.json');
     const jsonFile = await readFile(filePath, { encoding: 'utf8' });
@@ -48,7 +48,7 @@ const checkForConfigFile = async (): Promise<PrintCheckConfig | null> => {
   }
 }
 
-const createConfigFile = async (userInput: PrintCheckConfig): Promise<boolean> => {
+export const createConfigFile = async (userInput: PrintCheckConfig): Promise<boolean> => {
   try {
     const stringifiedData = JSON.stringify(userInput, null, 2);
     const configPath = path.join(process.cwd(), 'print_check_config.json')
@@ -62,7 +62,7 @@ const createConfigFile = async (userInput: PrintCheckConfig): Promise<boolean> =
   }
 }
 
-const normalizeQuestionResp = (
+export const normalizeQuestionResp = (
   fileExtensions: string, 
   warnOnly: string, 
   searchTerms: string,
