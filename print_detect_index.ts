@@ -61,7 +61,7 @@ const setupBashScriptToHook = async () => {
 
   const newHookPath = path.join(hooksDir, 'pre-commit');
   await writeFile(newHookPath, hookScript, { mode: 0o755 });
-  console.log(chalk.green('Created new pre-commit hook that chains old hook and print-check'));
+  console.log(chalk.green('Created new pre-commit hook that chains old hook and print-check\n'));
 }
 
 export const checkForConfigFile = async (): Promise<PrintCheckConfig | null> => {
