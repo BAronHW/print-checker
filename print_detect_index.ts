@@ -54,12 +54,9 @@ const setupBashScriptToHook = async () => {
     fi
   fi
 
-  # Run print-check
-  REPO_ROOT=$(git rev-parse --show-toplevel)
-  # Run the script with node
+  # Run print_check from installed package
   # Redirect stdin from terminal so script can read user input
-  node "$REPO_ROOT/dist/print_detect_index.js" < /dev/tty
-  exit $?
+  npx print_check < /dev/tty
   `;
 
   const newHookPath = path.join(hooksDir, 'pre-commit');

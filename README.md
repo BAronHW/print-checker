@@ -1,4 +1,4 @@
-# print-check
+# print_check
 
 A Git pre-commit hook that detects and prevents print/debug statements from being committed to your repository.
 
@@ -14,13 +14,13 @@ A Git pre-commit hook that detects and prevents print/debug statements from bein
 ## Installation
 
 ```bash
-npm install -g print-check
+npm install -g print_check
 ```
 
 Or install as a dev dependency in your project:
 
 ```bash
-npm install --save-dev print-check
+npm install --save-dev print_check
 ```
 
 ## Usage
@@ -28,7 +28,7 @@ npm install --save-dev print-check
 Run the command in your git repository:
 
 ```bash
-print-check
+print_check
 ```
 
 On first run, you'll be prompted to configure:
@@ -41,12 +41,12 @@ Your configuration will be saved to `print_check_config.json` in your project ro
 
 ## Setup as Pre-commit Hook
 
-To automatically run print-check before every commit, you can:
+To automatically run print_check before every commit, you can:
 
 1. Manually add it to `.git/hooks/pre-commit`:
 ```bash
 #!/bin/sh
-npx print-check
+npx print_check
 ```
 
 2. Or use the built-in hook setup function (see API section)
