@@ -1,7 +1,7 @@
 {
   "name": "print_check",
   "type": "module",
-  "version": "1.1.0",
+  "version": "1.1.2",
   "description": "A Git pre-commit hook that detects and prevents print/debug statements from being committed",
   "main": "dist/print_detect_index.js",
   "bin": {

@@ -6,12 +6,8 @@ import readline from 'node:readline/promises';
 import { access, readdir, readFile, rename, writeFile } from 'node:fs/promises';
 
 /**
- * 1. maybe add reference to line and row detected
- * 2. add this to precommit hook - need to test on linux based system
- * 3. publish to npm?
- * 4. need to have the script compile on first install
- * 5. need to make it work on both win32 and linux systems
- * 6. find better way make the pre-hook script work better?
+ * 1. need to test on linux based system
+ * 2. Have to fix issue where the old version of hooks get renamed each time to work differently
  */
 
 export interface PrintCheckConfig  {
@@ -37,7 +33,6 @@ const setupBashScriptToHook = async () => {
     const backupPath = path.join(hooksDir, backupName);
 
     await rename(preCommitPath, backupPath);
-    console.log(chalk.yellow(`Existing pre-commit hook renamed to ${backupName}`));
   } catch (error) {
 
   }
@@ -61,7 +56,6 @@ const setupBashScriptToHook = async () => {
 
   const newHookPath = path.join(hooksDir, 'pre-commit');
   await writeFile(newHookPath, hookScript, { mode: 0o755 });
-  console.log(chalk.green('Created new pre-commit hook that chains old hook and print-check\n'));
 }
 
 export const checkForConfigFile = async (): Promise<PrintCheckConfig | null> => {
@@ -150,7 +144,7 @@ const setupQuestions = async (): Promise<PrintCheckConfig> => {
     output: process.stdout
   });
 
-  const fileExtension = await rl.question('Enter file extensions with the . in the beginning (comma-separated)');
+  const fileExtension = await rl.question('\nEnter file extensions with the . in the beginning (comma-separated)');
   const warnOnly = await rl.question('Warn only without blocking? (y/n): ');
   const searchTerms = await rl.question('Enter patterns to search (comma-separated)');
   const hasLineDetails = await rl.question('Show line details for each print statement? (y/n): ')
