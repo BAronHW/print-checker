@@ -1,8 +1,9 @@
+#!/usr/bin/env node
 import { spawn } from 'node:child_process';
 import path from 'node:path';
 import chalk from 'chalk';
 import readline from 'node:readline/promises';
-import { readFile, writeFile } from 'node:fs/promises';
+import { access, readdir, readFile, rename, writeFile } from 'node:fs/promises';
 
 /**
  * 1. maybe add reference to line and row detected
@@ -20,14 +21,51 @@ export interface PrintCheckConfig  {
   hasLineDetails: boolean;
 };
 
-export const getConfig = async (): Promise<PrintCheckConfig> => {
-  const existing = await checkForConfigFile();
-  if (existing) return existing;
-  
-  const newConfig = await setupQuestions();
-  await createConfigFile(newConfig);
-  return newConfig;
-};
+const setupBashScriptToHook = async () => {
+  const repoRoot = await getRepoRoot();
+  const hooksDir = path.join(repoRoot, '.git', 'hooks');
+  const preCommitPath = path.join(hooksDir, 'pre-commit');
+
+  try {
+    await access(preCommitPath);
+
+    const files = await readdir(hooksDir);
+    const oldHooks = files.filter(f => f.match(/^pre-commit\d*\.old$/));
+    const nextIndex = oldHooks.length;
+
+    const backupName = nextIndex === 0 ? 'pre-commit.old' : `pre-commit${nextIndex}.old`;
+    const backupPath = path.join(hooksDir, backupName);
+
+    await rename(preCommitPath, backupPath);
+    console.log(chalk.yellow(`Existing pre-commit hook renamed to ${backupName}`));
+  } catch (error) {
+
+  }
+
+  const hookScript = `#!/bin/sh
+  # Auto-generated pre-commit hook for print_check
+
+  # Call old hook if it exists
+  if [ -f .git/hooks/pre-commit.old ]; then
+    .git/hooks/pre-commit.old
+    OLD_EXIT=$?
+    if [ $OLD_EXIT -ne 0 ]; then
+      exit $OLD_EXIT
+    fi
+  fi
+
+  # Run print-check
+  REPO_ROOT=$(git rev-parse --show-toplevel)
+  # Run the script with node
+  # Redirect stdin from terminal so script can read user input
+  node "$REPO_ROOT/dist/print_detect_index.js" < /dev/tty
+  exit $?
+  `;
+
+  const newHookPath = path.join(hooksDir, 'pre-commit');
+  await writeFile(newHookPath, hookScript, { mode: 0o755 });
+  console.log(chalk.green('Created new pre-commit hook that chains old hook and print-check'));
+}
 
 export const checkForConfigFile = async (): Promise<PrintCheckConfig | null> => {
   try {
@@ -259,8 +297,19 @@ const main = async () => {
     process.exit(1);
   }
 
-  const config = await getConfig();
-  const { fileExtensions, warnOnly, searchTerms, hasLineDetails } = config;
+  const existing = await checkForConfigFile();
+  
+  if (!existing) {
+    setupBashScriptToHook();
+  }
+
+  const config = existing ?? await (async () => {
+    const newConfig = await setupQuestions();
+    await createConfigFile(newConfig);
+    return newConfig;
+  })()
+
+  const { fileExtensions, warnOnly, searchTerms, hasLineDetails } = config
 
   const files = await getChangedFiles(fileExtensions);
   const filesWithPrint = await findPrintStatements(files, searchTerms, hasLineDetails);

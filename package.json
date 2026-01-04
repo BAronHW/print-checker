@@ -1,19 +1,51 @@
 {
-  "name": "print_check",
+  "name": "print-check",
   "type": "module",
-  "version": "1.0.0",
-  "description": "",
+  "version": "1.1.0",
+  "description": "A Git pre-commit hook that detects and prevents print/debug statements from being committed",
   "main": "dist/print_detect_index.js",
+  "bin": {
+    "print-check": "dist/print_detect_index.js"
+  },
+  "files": [
+    "dist/**/*.js",
+    "dist/**/*.js.map",
+    "!dist/tests/**",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "start": "node dist/print_detect_index.js",
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "node --test",
     "lint": "eslint . --ext .ts",
     "build": "tsc",
-    "dev": "node --watch print_detect_index.ts"
+    "dev": "node --watch print_detect_index.ts",
+    "prepublishOnly": "npm run build"
   },
-  "keywords": [],
+  "keywords": [
+    "git",
+    "pre-commit",
+    "hook",
+    "print",
+    "console.log",
+    "debug",
+    "linter",
+    "commit",
+    "validation"
+  ],
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": ""
+  },
+  "bugs": {
+    "url": ""
+  },
+  "homepage": "",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "devDependencies": {
     "@eslint/js": "^9.39.2",
     "@types/node": "^25.0.3",

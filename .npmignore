@@ -1,0 +1,33 @@
+# Source files (only dist should be published)
+*.ts
+!*.d.ts
+tsconfig.json
+
+# Tests
+tests/
+*.test.ts
+*.test.js
+dist/tests/
+
+# Development files
+.git/
+.gitignore
+eslint.config.mjs
+node_modules/
+
+# Config files (users should generate their own)
+print_check_config.json
+
+# Documentation (except README which is whitelisted)
+README_fixed.md
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
