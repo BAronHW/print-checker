@@ -26,10 +26,10 @@ const setupBashScriptToHook = async () => {
     await access(preCommitPath);
 
     const files = await readdir(hooksDir);
-    const oldHooks = files.filter(f => f.match(/^pre-commit\d*\.sample$/));
+    const oldHooks = files.filter(f => f.match(/^pre-commit\d*\.old$/));
     const nextIndex = oldHooks.length;
 
-    const backupName = nextIndex === 0 ? 'pre-commit.sample' : `pre-commit${nextIndex}.sample`;
+    const backupName = nextIndex === 0 ? 'pre-commit.old' : `pre-commit${nextIndex}.old`;
     const backupPath = path.join(hooksDir, backupName);
 
     await rename(preCommitPath, backupPath);
@@ -283,32 +283,16 @@ const confirmProceed = async (): Promise<boolean> => {
 };
 
 const main = async () => {
-
-  const isSetupMode = process.argv.includes('--setup');
-
   if (!await isGitRepo()) {
     console.error('Error: No git repository found in your current working directory');
     process.exit(1);
   }
 
-  if (isSetupMode) {
-    console.log(chalk.blue('Running setup...'));   
-    await setupBashScriptToHook();
-
-    const config = await setupQuestions();
-    await createConfigFile(config);
-
-    console.log(chalk.green('✓ Setup complete!')); 
-    process.exit(0);
-  }
-
   const existing = await checkForConfigFile();
   
   if (!existing) {
-      console.error(chalk.red('Error: Config file not found!'));
-      console.error(chalk.yellow('Run: npx print_check --setup'));
-      process.exit(1);
-    }
+    setupBashScriptToHook();
+  }
 
   const config = existing ?? await (async () => {
     const newConfig = await setupQuestions();
