@@ -1,0 +1,10 @@
+{
+  "fileExtensions": [
+    ".ts"
+  ],
+  "warnOnly": true,
+  "searchTerms": [
+    "console.log"
+  ],
+  "hasLineDetails": false
+}

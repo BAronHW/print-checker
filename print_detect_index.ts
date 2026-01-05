@@ -26,10 +26,10 @@ const setupBashScriptToHook = async () => {
     await access(preCommitPath);
 
     const files = await readdir(hooksDir);
-    const oldHooks = files.filter(f => f.match(/^pre-commit\d*\.old$/));
+    const oldHooks = files.filter(f => f.match(/^pre-commit\d*\.sample$/));
     const nextIndex = oldHooks.length;
 
-    const backupName = nextIndex === 0 ? 'pre-commit.old' : `pre-commit${nextIndex}.old`;
+    const backupName = nextIndex === 0 ? 'pre-commit.sample' : `pre-commit${nextIndex}.sample`;
     const backupPath = path.join(hooksDir, backupName);
 
     await rename(preCommitPath, backupPath);
@@ -290,8 +290,14 @@ const main = async () => {
 
   const existing = await checkForConfigFile();
   
+  const isRunningFromHook = process.env.GIT_AUTHOR_NAME !== undefined;
+
   if (!existing) {
-    setupBashScriptToHook();
+    if (isRunningFromHook) {
+      console.error('Config file missing! Run: npx print_check --setup');
+      process.exit(1);
+    }
+    setupBashScriptToHook(); // Only if NOT from hook
   }
 
   const config = existing ?? await (async () => {
