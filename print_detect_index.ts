@@ -135,9 +135,9 @@ const setupQuestions = async (): Promise<PrintCheckConfig> => {
     output: process.stdout
   });
 
-  const fileExtension = await rl.question('\nEnter file extensions with the . in the beginning (comma-separated)');
+  const fileExtension = await rl.question('\nEnter file extensions with the . in the beginning (comma-separated): ');
   const warnOnly = await rl.question('Warn only without blocking? (y/n): ');
-  const searchTerms = await rl.question('Enter patterns to search (comma-separated)');
+  const searchTerms = await rl.question('Enter patterns to search (comma-separated): ');
   const hasLineDetails = await rl.question('Show line details for each print statement? (y/n): ')
 
   const resObj = normalizeQuestionResp(
@@ -278,6 +278,7 @@ const main = async () => {
     console.error('Error: No git repository found in your current working directory');
     process.exit(1);
   }
+
 
   const existing = await checkForConfigFile();
   

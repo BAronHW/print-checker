@@ -43,13 +43,11 @@ Your configuration will be saved to `print_check_config.json` in your project ro
 
 To automatically run print_check before every commit, you can:
 
-1. Manually add it to `.git/hooks/pre-commit`:
-```bash
-#!/bin/sh
-npx print_check
+1. Just follow the setup by running print_check after downloading.
+
 ```
 
-2. Or use the built-in hook setup function (see API section)
+2. After completing the setup phase any terms found matching your search patterns will be flagged.
 
 ## Configuration
 
