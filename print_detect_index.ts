@@ -40,15 +40,6 @@ const setupBashScriptToHook = async () => {
   const hookScript = `#!/bin/sh
   # Auto-generated pre-commit hook for print_check
 
-  # Call old hook if it exists
-  if [ -f .git/hooks/pre-commit.old ]; then
-    .git/hooks/pre-commit.old
-    OLD_EXIT=$?
-    if [ $OLD_EXIT -ne 0 ]; then
-      exit $OLD_EXIT
-    fi
-  fi
-
   # Run print_check from installed package
   # Redirect stdin from terminal so script can read user input
   npx print_check < /dev/tty
