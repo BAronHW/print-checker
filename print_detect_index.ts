@@ -35,7 +35,6 @@ const setupBashScriptToHook = async () => {
     await rename(preCommitPath, backupPath);
   } catch (error) {
     // need to better handle errors here
-    
   }
 
   const hookScript = `#!/bin/sh
