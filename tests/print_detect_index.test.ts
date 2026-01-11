@@ -8,7 +8,6 @@ import { normalizeQuestionResp, checkForConfigFile, createConfigFile } from '../
 // ============================================
 // These functions have no side effects, so we can test them directly
 // with mock data - no dependency injection needed!
-// console.log
 describe('normalizeQuestionResp', () => {
   it('should parse comma-separated file extensions without spaces', () => {
     // Arrange - Note: no spaces after commas, or validation will fail
