@@ -43,11 +43,11 @@ Your configuration will be saved to `print_check_config.json` in your project ro
 
 To automatically run print_check before every commit, you can:
 
+```
 1. Just follow the setup by running print_check after downloading.
 
-```
-
 2. After completing the setup phase any terms found matching your search patterns will be flagged.
+```
 
 ## Configuration
 

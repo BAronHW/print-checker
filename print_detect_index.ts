@@ -8,6 +8,7 @@ import { access, readdir, readFile, rename, writeFile } from 'node:fs/promises';
 /**
  * 1. need to test on linux based system
  * 2. Have to fix issue where the old version of hooks get renamed each time to work differently
+ * 3. Add feature to exclude files - need to fix some bugs here
  */
 
 export interface PrintCheckConfig  {
@@ -15,6 +16,28 @@ export interface PrintCheckConfig  {
   warnOnly: boolean;
   searchTerms: string[];
   hasLineDetails: boolean;
+  filesToExclude?: string[];
+};
+
+const writeToConfig = async (
+  key: string,
+  value: string,
+  filePath: string
+): Promise<Record<string, any>> => {        
+  const config = await checkForConfigFile();
+
+  if (!config) {
+    throw new Error('Unable to find config to write to');
+  }
+
+  const newConfig = {
+    ...config,
+    [key]: value
+  };
+
+  await writeFile(filePath, JSON.stringify(newConfig, null, 2));
+
+  return newConfig;
 };
 
 const setupBashScriptToHook = async () => {
@@ -86,7 +109,8 @@ export const normalizeQuestionResp = (
   fileExtensions: string, 
   warnOnly: string, 
   searchTerms: string,
-  hasLineDetails: string
+  hasLineDetails: string,
+  filesToExclude?: string
 ): PrintCheckConfig  => {
 
   
@@ -117,11 +141,16 @@ export const normalizeQuestionResp = (
     .split(',')
     .map(terms => terms.trim());
 
+  const filesToExcludeArr = filesToExclude
+    .split(',')
+    .map(file => file.trim());
+
   const returnObj: PrintCheckConfig  = {
     fileExtensions: trimAndSplitExt,
     warnOnly: warnFlag,
     searchTerms: terms,
-    hasLineDetails: lineDetailFlag
+    hasLineDetails: lineDetailFlag,
+    filesToExclude: filesToExcludeArr
   }
 
   return returnObj;
@@ -139,12 +168,14 @@ const setupQuestions = async (): Promise<PrintCheckConfig> => {
   const warnOnly = await rl.question('Warn only without blocking? (y/n): ');
   const searchTerms = await rl.question('Enter patterns to search (comma-separated): ');
   const hasLineDetails = await rl.question('Show line details for each print statement? (y/n): ')
+  const filesToExclude = await rl.question('Enter file paths to exclude leave blank if none (comma-seperated): ')
 
   const resObj = normalizeQuestionResp(
     fileExtension, 
     warnOnly, 
     searchTerms,
-    hasLineDetails
+    hasLineDetails,
+    filesToExclude
   );
 
   rl.close();
@@ -215,7 +246,7 @@ const getDiffOutputs = async (): Promise<string> => {
 const getChangedFiles = async (fileExtensions: string[]): Promise<string[]> => {
   const repoRoot = await getRepoRoot();
   const diffOutput = await getDiffOutputs()
-  const normalizedRoot =  path.normalize(repoRoot.trim());
+  const normalizedRoot = path.normalize(repoRoot.trim());
   return diffOutput
     .split('\0')
     .filter(Boolean)
@@ -224,9 +255,10 @@ const getChangedFiles = async (fileExtensions: string[]): Promise<string[]> => {
 };
 
 const findPrintStatements = async (
-  files: string[], 
+  files: string[],
   printStatement: string[],
-  hasLineDetails: boolean
+  hasLineDetails: boolean,
+  filesToExclude: string[]
 ): Promise<string[]> => {
 
   if (files.length === 0) return [];
@@ -235,11 +267,13 @@ const findPrintStatements = async (
   const repoRoot = await getRepoRoot()
 
   const lineDetailArg: string =
-    hasLineDetails == true ? '-n' : '-l' 
-  
+    hasLineDetails == true ? '-n' : '-l'
+
+  const excludeArgs = filesToExclude.filter(Boolean).flatMap(f => [`:(exclude)${f}`]);
+
   return new Promise((resolve) => {
     const child = spawn('git', [
-      'grep', '--cached', lineDetailArg, ...patternArgs, '--', ...files
+      'grep', '--cached', lineDetailArg, ...patternArgs, '--', ...files, ...excludeArgs
     ]);
     
     const chunks: Buffer[] = [];
@@ -292,10 +326,10 @@ const main = async () => {
     return newConfig;
   })()
 
-  const { fileExtensions, warnOnly, searchTerms, hasLineDetails } = config
+  const { fileExtensions, warnOnly, searchTerms, hasLineDetails, filesToExclude } = config
 
   const files = await getChangedFiles(fileExtensions);
-  const filesWithPrint = await findPrintStatements(files, searchTerms, hasLineDetails);
+  const filesWithPrint = await findPrintStatements(files, searchTerms, hasLineDetails, filesToExclude);
 
   if (filesWithPrint.length > 0) {
     throwWarnings(filesWithPrint);
