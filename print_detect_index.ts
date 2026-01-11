@@ -5,12 +5,6 @@ import chalk from 'chalk';
 import readline from 'node:readline/promises';
 import { access, readdir, readFile, rename, writeFile } from 'node:fs/promises';
 
-/**
- * 1. need to test on linux based system
- * 2. Have to fix issue where the old version of hooks get renamed each time to work differently
- * 3. Add feature to exclude files - need to fix some bugs here
- */
-
 export interface PrintCheckConfig  {
   fileExtensions: string[];
   warnOnly: boolean;
@@ -157,22 +151,31 @@ export const normalizeQuestionResp = (
 
 }
 
-const setupQuestions = async (): Promise<PrintCheckConfig> => {
-
+const setupQuestions = async (): Promise<PrintCheckConfig> => { 
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout
   });
 
-  const fileExtension = await rl.question('\nEnter file extensions with the . in the beginning (comma-separated): ');
-  const warnOnly = await rl.question('Warn only without blocking? (y/n): ');
-  const searchTerms = await rl.question('Enter patterns to search (comma-separated): ');
-  const hasLineDetails = await rl.question('Show line details for each print statement? (y/n): ')
-  const filesToExclude = await rl.question('Enter file paths to exclude leave blank if none (comma-seperated): ')
+  const questions = [
+    '\nEnter file extensions with the . in the beginning (comma-separated): ',
+    'Warn only without blocking? (y/n): ',
+    'Enter patterns to search (comma-separated): ',
+    'Show line details for each print statement? (y/n): ',      
+    'Enter file paths to exclude leave blank if none (comma-seperated): '
+  ];
+
+  const answers = await questions.reduce(async (promiseAcc, question) => {
+    const acc = await promiseAcc;
+    const answer = await rl.question(question);
+    return [...acc, answer];
+  }, Promise.resolve([] as string[]));
+
+  const [fileExtension, warnOnly, searchTerms, hasLineDetails, filesToExclude] = answers;
 
   const resObj = normalizeQuestionResp(
-    fileExtension, 
-    warnOnly, 
+    fileExtension,
+    warnOnly,
     searchTerms,
     hasLineDetails,
     filesToExclude
@@ -180,7 +183,6 @@ const setupQuestions = async (): Promise<PrintCheckConfig> => {
 
   rl.close();
   return resObj;
-  
 }
 
 const throwWarnings = (filesWithConsoleLogs: string[]) => {
