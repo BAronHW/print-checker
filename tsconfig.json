@@ -6,6 +6,7 @@
     "moduleResolution": "NodeNext",
     "sourceMap": true,
     "outDir": "dist",
-    "lib": ["ES2021"]
+    "lib": ["ES2021"],
+    "types": ["node"]
   }
 }
