@@ -19,27 +19,6 @@ export interface PrintCheckConfig  {
   filesToExclude?: string[];
 };
 
-const writeToConfig = async (
-  key: string,
-  value: string,
-  filePath: string
-): Promise<Record<string, any>> => {        
-  const config = await checkForConfigFile();
-
-  if (!config) {
-    throw new Error('Unable to find config to write to');
-  }
-
-  const newConfig = {
-    ...config,
-    [key]: value
-  };
-
-  await writeFile(filePath, JSON.stringify(newConfig, null, 2));
-
-  return newConfig;
-};
-
 const setupBashScriptToHook = async () => {
   const repoRoot = await getRepoRoot();
   const hooksDir = path.join(repoRoot, '.git', 'hooks');
@@ -57,7 +36,8 @@ const setupBashScriptToHook = async () => {
 
     await rename(preCommitPath, backupPath);
   } catch (error) {
-    // need to better handle errors here
+    await handleError(error);
+    return;
   }
 
   const hookScript = `#!/bin/sh
@@ -72,7 +52,7 @@ const setupBashScriptToHook = async () => {
   await writeFile(newHookPath, hookScript, { mode: 0o755 });
 }
 
-export const checkForConfigFile = async (): Promise<PrintCheckConfig | null> => {
+export const checkForConfigFile = async (): Promise<PrintCheckConfig | void> => {
   try {
     const filePath = path.join(process.cwd(), 'print_check_config.json');
     const jsonFile = await readFile(filePath, { encoding: 'utf8' });
@@ -82,12 +62,13 @@ export const checkForConfigFile = async (): Promise<PrintCheckConfig | null> => 
         typeof parsedJsonFile.warnOnly !== 'boolean' ||
         !Array.isArray(parsedJsonFile.searchTerms)) {
       console.log(chalk.yellow('Invalid config file, creating new one'));
-      return null;
+      return;
     }
 
     return parsedJsonFile;
-  } catch (error) {
-    return null;
+  } catch (error: unknown) {
+    await handleError(error)
+    return;
   }
 }
 
@@ -99,9 +80,8 @@ export const createConfigFile = async (userInput: PrintCheckConfig): Promise<boo
     console.log(chalk.blue('Successfully created config file'));
     return true;
   } catch (error) {
-    console.log(chalk.red('Failed to create config file'));
-    console.error(error);
-    return false;
+    await handleError(error);
+    return false
   }
 }
 
@@ -142,7 +122,7 @@ export const normalizeQuestionResp = (
     .map(terms => terms.trim());
 
   const filesToExcludeArr = filesToExclude
-    .split(',')
+    ?.split(',')
     .map(file => file.trim());
 
   const returnObj: PrintCheckConfig  = {
@@ -258,7 +238,7 @@ const findPrintStatements = async (
   files: string[],
   printStatement: string[],
   hasLineDetails: boolean,
-  filesToExclude: string[]
+  filesToExclude?: string[]
 ): Promise<string[]> => {
 
   if (files.length === 0) return [];
@@ -269,11 +249,11 @@ const findPrintStatements = async (
   const lineDetailArg: string =
     hasLineDetails == true ? '-n' : '-l'
 
-  const excludeArgs = filesToExclude.filter(Boolean).flatMap(f => [`:(exclude)${f}`]);
+  const excludeArgs = filesToExclude?.filter(Boolean).flatMap(f => [`:(exclude)${f}`]);
 
   return new Promise((resolve) => {
     const child = spawn('git', [
-      'grep', '--cached', lineDetailArg, ...patternArgs, '--', ...files, ...excludeArgs
+      'grep', '--cached', lineDetailArg, ...patternArgs, '--', ...files, ...excludeArgs ?? ''
     ]);
     
     const chunks: Buffer[] = [];
@@ -306,6 +286,14 @@ const confirmProceed = async (): Promise<boolean> => {
   
   return answer.toLowerCase() === 'y';
 };
+
+const handleError = (error: unknown): Promise<void> => {
+  const errorPath = path.join(process.cwd(), crypto.randomUUID());
+  const errorString = error instanceof Error 
+  ? (error.stack) ?? error.message 
+  : String(error);
+  return writeFile(errorPath, errorString);
+}
 
 const main = async () => {
   if (!await isGitRepo()) {
