@@ -1,4 +1,4 @@
-# print_check
+﻿# print_check
 
 A Git pre-commit hook that detects and prevents print/debug statements from being committed to your repository.
 
