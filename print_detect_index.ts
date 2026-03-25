@@ -316,6 +316,11 @@ const main = async () => {
     return newConfig;
   })()
 
+  if (!config) {
+    console.warn(chalk.red('Unable to find existing config or create new config'));
+    process.exit(1);
+  }
+
   const { fileExtensions, warnOnly, searchTerms, hasLineDetails, filesToExclude } = config
 
   const files = await getChangedFiles(fileExtensions);
